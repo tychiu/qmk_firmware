@@ -147,6 +147,9 @@ const uint16_t PROGMEM thumb_shift_outputs[NICOLA_CODE_COUNT][OUTPUT_LEN] = {
 
 static enum press_state press_state = NONE;
 static enum shift_state shift_state = NO_SHIFT;
+#ifdef THUMB_HOLD
+static bool is_hold = false;
+#endif
 static uint16_t shift_timer = 0;
 static uint16_t text_timer = 0;
 static keypos_t buffer;
@@ -172,6 +175,11 @@ static inline void combo_send(enum combo_code code) {
 }
 
 static inline void shift_send(enum shift_state shift) {
+    #ifdef THUMB_HOLD
+        if (is_hold) {
+            return;
+        }
+    #endif
     switch (shift) {
         case NO_SHIFT:
             break;
@@ -199,6 +207,9 @@ void thumb_shift_init(void) {
     }
     press_state = NONE;
     shift_state = NO_SHIFT;
+    #ifdef THUMB_HOLD
+        is_hold = false;
+    #endif
 }
 
 static inline void process_thumb_shift_timeout(uint16_t now) {
@@ -207,18 +218,32 @@ static inline void process_thumb_shift_timeout(uint16_t now) {
             break;
         case TEXT_ONLY:
             if (now - text_timer > COMBO_TERM) {
-                thumb_shift_init();
+                combo_send(combo_keymap(shift_state, buffer));
+                press_state = NONE;
+                shift_state = NO_SHIFT;
             }
             break;
         case SHIFT_ONLY:
-            if (now - shift_timer > COMBO_TERM) {
-                thumb_shift_init();
-            }
+            #ifndef THUMB_HOLD
+                if (now - shift_timer > COMBO_TERM) {
+                    thumb_shift_init();
+                }
+            #endif
             break;
         case BOTH:
-            if (now - shift_timer > COMBO_TERM || now - text_timer > COMBO_TERM) {
-                thumb_shift_init();
-            }
+            #ifdef THUMB_HOLD
+                if (now - text_timer > COMBO_TERM) {
+                    combo_send(combo_keymap(shift_state, buffer));
+                    press_state = SHIFT_ONLY;
+                    is_hold = true;
+                }
+            #else
+                if (now - shift_timer > COMBO_TERM || now - text_timer > COMBO_TERM) {
+                    combo_send(combo_keymap(shift_state, buffer));
+                    press_state = NONE;
+                    shift_state = NO_SHIFT;
+                }
+            #endif
     }
 }
 
@@ -255,10 +280,16 @@ static inline bool process_text_only_pressed(uint16_t keycode, keypos_t pos, uin
         press_state = BOTH;
         shift_state = LEFT_SHIFT;
         shift_timer = now;
+        #ifdef THUMB_HOLD
+            is_hold = true;
+        #endif
     } else if (keycode == THUMB_R) {
         press_state = BOTH;
         shift_state = RIGHT_SHIFT;
         shift_timer = now;
+        #ifdef THUMB_HOLD
+            is_hold = true;
+        #endif
     } else {
         combo_send(combo_keymap(NO_SHIFT, buffer));
         code = combo_keymap(NO_SHIFT, pos);
@@ -290,10 +321,16 @@ static inline bool process_shift_only_pressed(uint16_t keycode, keypos_t pos, ui
         shift_send(shift_state);
         shift_state = LEFT_SHIFT;
         shift_timer = now;
+        #ifdef THUMB_HOLD
+            is_hold = false;
+        #endif
     } else if (keycode == THUMB_R) {
         shift_send(shift_state);
         shift_state = RIGHT_SHIFT;
         shift_timer = now;
+        #ifdef THUMB_HOLD
+            is_hold = false;
+        #endif
     } else {
         code = combo_keymap(shift_state, pos);
         if (code == NC_____) {
@@ -302,6 +339,9 @@ static inline bool process_shift_only_pressed(uint16_t keycode, keypos_t pos, ui
         press_state = BOTH;
         buffer = pos;
         text_timer = now;
+        #ifdef THUMB_HOLD
+            is_hold = true;
+        #endif
     }
     return false;
 }
@@ -312,10 +352,16 @@ static inline bool process_shift_only_released(uint16_t keycode, keypos_t pos) {
         shift_send(LEFT_SHIFT);
         press_state = NONE;
         shift_state = NO_SHIFT;
+        #ifdef THUMB_HOLD
+            is_hold = false;
+        #endif
     } else if (shift_state == RIGHT_SHIFT && keycode == THUMB_R) {
         shift_send(RIGHT_SHIFT);
         press_state = NONE;
         shift_state = NO_SHIFT;
+        #ifdef THUMB_HOLD
+            is_hold = false;
+        #endif
     } else {
         code = combo_keymap(shift_state, pos);
         return code == NC_____;
@@ -330,14 +376,21 @@ static inline void sandwich_text(keypos_t pos, uint16_t now) {
     uint16_t time_before_shift = shift_timer - text_timer;
     if (time_before_shift < time_after_shift) {
         combo_send(combo_keymap(shift_state, buffer));
-        press_state = TEXT_ONLY;
-        shift_state = NO_SHIFT;
+        #ifdef THUMB_HOLD
+            press_state = BOTH;
+        #else
+            press_state = TEXT_ONLY;
+            shift_state = NO_SHIFT;
+        #endif
     } else {
         combo_send(combo_keymap(NO_SHIFT, buffer));
         press_state = BOTH;
     }
     buffer = pos;
     text_timer = now;
+    #ifdef THUMB_HOLD
+        is_hold = true;
+    #endif
 }
 
 /* Sandwich evaluation: shift1 -> text -> shift2 */
@@ -350,9 +403,15 @@ static inline void sandwich_shift(enum shift_state next_state, uint16_t now) {
         press_state = SHIFT_ONLY;
         // buffer.row = 0;
         // buffer.col = 0;
+        #ifdef THUMB_HOLD
+            is_hold = false;
+        #endif
     } else {
         shift_send(shift_state);
         press_state = BOTH;
+        #ifdef THUMB_HOLD
+            is_hold = true;
+        #endif
     }
     shift_state = next_state;
     shift_timer = now;
@@ -361,7 +420,7 @@ static inline void sandwich_shift(enum shift_state next_state, uint16_t now) {
 static inline bool process_both_pressed(uint16_t keycode, keypos_t pos, uint16_t now) {
     enum combo_code code;
     if (shift_timer < text_timer) {
-        /* text -> shift 文字 → シフト */
+        /* shift -> text */ /* シフト → 文字 */
         if (keycode == THUMB_L) {
             sandwich_shift(LEFT_SHIFT, now);
         } else if (keycode == THUMB_R) {
@@ -376,19 +435,28 @@ static inline bool process_both_pressed(uint16_t keycode, keypos_t pos, uint16_t
             shift_state = NO_SHIFT;
             buffer = pos;
             text_timer = now;
+            #ifdef THUMB_HOLD
+                is_hold = false;
+            #endif
         }
     } else {
-        /* shift -> text シフト → 文字 */
+        /* text -> shift */ /* 文字 → シフト */
         if (keycode == THUMB_L) {
             combo_send(combo_keymap(shift_state, buffer));
             press_state = SHIFT_ONLY;
             shift_state = LEFT_SHIFT;
             shift_timer = now;
+            #ifdef THUMB_HOLD
+                is_hold = false;
+            #endif
         } else if (keycode == THUMB_R) {
             combo_send(combo_keymap(shift_state, buffer));
             press_state = SHIFT_ONLY;
             shift_state = RIGHT_SHIFT;
             shift_timer = now;
+            #ifdef THUMB_HOLD
+                is_hold = false;
+            #endif
         } else {
             code = combo_keymap(shift_state, buffer);
             if (code == NC_____) {
@@ -408,12 +476,14 @@ static inline void overlap_shift(uint16_t now) {
     if (time_before_text >= time_before_release && time_before_release < OVERLAP_TERM) {
         shift_send(shift_state);
         press_state = TEXT_ONLY;
-        shift_state = NO_SHIFT;
     } else {
         combo_send(combo_keymap(shift_state, buffer));
         press_state = NONE;
-        shift_state = NO_SHIFT;
     }
+    shift_state = NO_SHIFT;
+    #ifdef THUMB_HOLD
+        is_hold = false;
+    #endif
 }
 
 /* Overlap evaluation: text down -> shift down -> text up */
@@ -424,10 +494,18 @@ static inline void overlap_text(uint16_t now) {
     if (time_before_shift >= time_before_release && time_before_release < OVERLAP_TERM) {
         combo_send(combo_keymap(NO_SHIFT, buffer));
         press_state = SHIFT_ONLY;
+        #ifdef THUMB_HOLD
+            is_hold = false;
+        #endif
     } else {
         combo_send(combo_keymap(shift_state, buffer));
-        press_state = NONE;
-        shift_state = NO_SHIFT;
+        #ifdef THUMB_HOLD
+            press_state = SHIFT_ONLY;
+            is_hold = true;
+        #else
+            press_state = NONE;
+            shift_state = NO_SHIFT;
+        #endif
     }
 }
 
