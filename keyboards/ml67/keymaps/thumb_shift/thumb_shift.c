@@ -192,45 +192,45 @@ void thumb_shift_init(void) {
     shift_state = NO_SHIFT;
 }
 
-static inline void process_thumb_shift_timeout(void) {
+static inline void process_thumb_shift_timeout(uint16_t now) {
     switch (press_state) {
         case NONE:
             break;
         case TEXT_ONLY:
-            if (timer_elapsed(text_timer) > COMBO_TERM) {
+            if (now - text_timer > COMBO_TERM) {
                 thumb_shift_init();
             }
             break;
         case SHIFT_ONLY:
-            if (timer_elapsed(shift_timer) > COMBO_TERM) {
+            if (now - shift_timer > COMBO_TERM) {
                 thumb_shift_init();
             }
             break;
         case BOTH:
-            if (timer_elapsed(shift_timer) > COMBO_TERM || timer_elapsed(text_timer) > COMBO_TERM) {
+            if (now - shift_timer > COMBO_TERM || now - text_timer > COMBO_TERM) {
                 thumb_shift_init();
             }
     }
 }
 
-static inline bool process_none_pressed(uint16_t keycode, keypos_t pos) {
+static inline bool process_none_pressed(uint16_t keycode, keypos_t pos, uint16_t now) {
     enum combo_code code;
     if (keycode == THUMB_L) {
         press_state = SHIFT_ONLY;
         shift_state = LEFT_SHIFT;
-        shift_timer = timer_read();
+        shift_timer = now;
     } else if (keycode == THUMB_R) {
         press_state = SHIFT_ONLY;
         shift_state = RIGHT_SHIFT;
-        shift_timer = timer_read();
+        shift_timer = now;
     } else {
         code = combo_keymap(NO_SHIFT, pos);
         if (code == NC_____) {
             return true;
         }
         press_state = TEXT_ONLY;
-        text_timer = timer_read();
         buffer = pos;
+        text_timer = now;
     }
     return false;
 }
@@ -240,24 +240,24 @@ static inline bool process_none_released(uint16_t keycode, keypos_t pos) {
     return code == NC_____;
 }
 
-static inline bool process_text_only_pressed(uint16_t keycode, keypos_t pos) {
+static inline bool process_text_only_pressed(uint16_t keycode, keypos_t pos, uint16_t now) {
     enum combo_code code;
     if (keycode == THUMB_L) {
         press_state = BOTH;
         shift_state = LEFT_SHIFT;
-        shift_timer = timer_read();
+        shift_timer = now;
     } else if (keycode == THUMB_R) {
         press_state = BOTH;
         shift_state = RIGHT_SHIFT;
-        shift_timer = timer_read();
+        shift_timer = now;
     } else {
         combo_send(combo_keymap(NO_SHIFT, buffer));
         code = combo_keymap(NO_SHIFT, pos);
         if (code == NC_____) {
             return true;
         }
-        text_timer = timer_read();
         buffer = pos;
+        text_timer = now;
     }
     return false;
 }
@@ -275,7 +275,7 @@ static inline bool process_text_only_released(keypos_t pos) {
     return false;
 }
 
-static inline bool process_shift_only_pressed(uint16_t keycode, keypos_t pos) {
+static inline bool process_shift_only_pressed(uint16_t keycode, keypos_t pos, uint16_t now) {
     enum combo_code code;
     if (keycode == THUMB_L) {
         if (shift_state == LEFT_SHIFT) {
@@ -283,22 +283,22 @@ static inline bool process_shift_only_pressed(uint16_t keycode, keypos_t pos) {
         } else {
             shift_state = LEFT_SHIFT;
         }
-        shift_timer = timer_read();
+        shift_timer = now;
     } else if (keycode == THUMB_R) {
         if (shift_state == RIGHT_SHIFT) {
             tap_code(KC_SPACE); /* OS-independant henkan OS全般適用変換 */
         } else {
             shift_state = RIGHT_SHIFT;
         }
-        shift_timer = timer_read();
+        shift_timer = now;
     } else {
         code = combo_keymap(shift_state, pos);
         if (code == NC_____) {
             return true;
         }
         press_state = BOTH;
-        text_timer = timer_read();
         buffer = pos;
+        text_timer = now;
     }
     return false;
 }
@@ -322,8 +322,8 @@ static inline bool process_shift_only_released(uint16_t keycode, keypos_t pos) {
 
 /* Sandwich evaluation: text1 -> shift -> text2 */
 /* ja: 挟み打ち判定：文字１ → シフト → 文字２ */
-static inline void sandwich_text(keypos_t pos) {
-    uint16_t time_after_shift = timer_elapsed(shift_timer);
+static inline void sandwich_text(keypos_t pos, uint16_t now) {
+    uint16_t time_after_shift = now - shift_timer;
     uint16_t time_before_shift = shift_timer - text_timer;
     if (time_before_shift < time_after_shift) {
         combo_send(combo_keymap(shift_state, buffer));
@@ -334,12 +334,13 @@ static inline void sandwich_text(keypos_t pos) {
         press_state = BOTH;
     }
     buffer = pos;
+    text_timer = now;
 }
 
 /* Sandwich evaluation: shift1 -> text -> shift2 */
 /* ja: 挟み打ち判定：シフト１ → 文字 → シフト２ */
-static inline void sandwich_shift(enum shift_state next_state) {
-    uint16_t time_after_text = timer_elapsed(text_timer);
+static inline void sandwich_shift(enum shift_state next_state, uint16_t now) {
+    uint16_t time_after_text = now - text_timer;
     uint16_t time_before_text = text_timer - shift_timer;
     if (time_before_text < time_after_text) {
         combo_send(combo_keymap(shift_state, buffer));
@@ -350,16 +351,17 @@ static inline void sandwich_shift(enum shift_state next_state) {
         press_state = BOTH;
     }
     shift_state = next_state;
+    shift_timer = now;
 }
 
-static inline bool process_both_pressed(uint16_t keycode, keypos_t pos) {
+static inline bool process_both_pressed(uint16_t keycode, keypos_t pos, uint16_t now) {
     enum combo_code code;
     if (shift_timer < text_timer) {
         /* text -> shift 文字 → シフト */
         if (keycode == THUMB_L) {
-            sandwich_shift(LEFT_SHIFT);
+            sandwich_shift(LEFT_SHIFT, now);
         } else if (keycode == THUMB_R) {
-            sandwich_shift(RIGHT_SHIFT);
+            sandwich_shift(RIGHT_SHIFT, now);
         } else {
             code = combo_keymap(shift_state, pos);
             if (code == NC_____) {
@@ -369,6 +371,7 @@ static inline bool process_both_pressed(uint16_t keycode, keypos_t pos) {
             press_state = TEXT_ONLY;
             shift_state = NO_SHIFT;
             buffer = pos;
+            text_timer = now;
         }
     } else {
         /* shift -> text シフト → 文字 */
@@ -376,16 +379,18 @@ static inline bool process_both_pressed(uint16_t keycode, keypos_t pos) {
             combo_send(combo_keymap(shift_state, buffer));
             press_state = SHIFT_ONLY;
             shift_state = LEFT_SHIFT;
+            shift_timer = now;
         } else if (keycode == THUMB_R) {
             combo_send(combo_keymap(shift_state, buffer));
             press_state = SHIFT_ONLY;
             shift_state = RIGHT_SHIFT;
+            shift_timer = now;
         } else {
             code = combo_keymap(shift_state, buffer);
             if (code == NC_____) {
                 return true;
             }
-            sandwich_text(pos);
+            sandwich_text(pos, now);
         }
     }
     return false;
@@ -393,8 +398,8 @@ static inline bool process_both_pressed(uint16_t keycode, keypos_t pos) {
 
 /* Overlap evaluation: shift down -> text down -> shift up */
 /* ja: 重なり判定：シフト押す → 文字押す → シフト離す */
-static inline void overlap_shift(void) {
-    uint16_t time_before_release = timer_elapsed(text_timer);
+static inline void overlap_shift(uint16_t now) {
+    uint16_t time_before_release = now - text_timer;
     uint16_t time_before_text = text_timer - shift_timer;
     if (time_before_text >= time_before_release && time_before_release < OVERLAP_TERM) {
         press_state = TEXT_ONLY;
@@ -408,8 +413,8 @@ static inline void overlap_shift(void) {
 
 /* Overlap evaluation: text down -> shift down -> text up */
 /* ja: 重なり判定：文字押す → シフト押す → 文字離す */
-static inline void overlap_text(void) {
-    uint16_t time_before_release = timer_elapsed(shift_timer);
+static inline void overlap_text(uint16_t now) {
+    uint16_t time_before_release = now - shift_timer;
     uint16_t time_before_shift = shift_timer - text_timer;
     if (time_before_shift >= time_before_release && time_before_release < OVERLAP_TERM) {
         combo_send(combo_keymap(NO_SHIFT, buffer));
@@ -421,46 +426,46 @@ static inline void overlap_text(void) {
     }
 }
 
-static inline bool process_both_released(uint16_t keycode, keypos_t pos) {
+static inline bool process_both_released(uint16_t keycode, keypos_t pos, uint16_t now) {
     if (shift_state == LEFT_SHIFT && keycode == THUMB_L) {
-        overlap_shift();
+        overlap_shift(now);
     } else if (shift_state == RIGHT_SHIFT && keycode == THUMB_R) {
-        overlap_shift();
+        overlap_shift(now);
     } else if (buffer.row == pos.row && buffer.col == pos.col) {
-        overlap_text();
+        overlap_text(now);
     }
     return false;
 }
 
-bool process_thumb_shift(uint16_t keycode, keypos_t pos, bool pressed) {
-    process_thumb_shift_timeout();
+bool process_thumb_shift(uint16_t keycode, keyevent_t *event) {
+    process_thumb_shift_timeout(event->time);
     if (IS_MOD(keycode)) {
         return true;
     }
     switch (press_state) {
         case NONE:
-            if (pressed) {
-                return process_none_pressed(keycode, pos);
+            if (event->pressed) {
+                return process_none_pressed(keycode, event->key, event->time);
             } else {
-                return process_none_released(keycode, pos);
+                return process_none_released(keycode, event->key);
             }
         case TEXT_ONLY:
-            if (pressed) {
-                return process_text_only_pressed(keycode, pos);
+            if (event->pressed) {
+                return process_text_only_pressed(keycode, event->key, event->time);
             } else {
-                return process_text_only_released(pos);
+                return process_text_only_released(event->key);
             }
         case SHIFT_ONLY:
-            if (pressed) {
-                return process_shift_only_pressed(keycode, pos);
+            if (event->pressed) {
+                return process_shift_only_pressed(keycode, event->key, event->time);
             } else {
-                return process_shift_only_released(keycode, pos);
+                return process_shift_only_released(keycode, event->key);
             }
         case BOTH:
-            if (pressed) {
-                return process_both_pressed(keycode, pos);
+            if (event->pressed) {
+                return process_both_pressed(keycode, event->key, event->time);
             } else {
-                return process_both_released(keycode, pos);
+                return process_both_released(keycode, event->key, event->time);
             }
     }
     return false;

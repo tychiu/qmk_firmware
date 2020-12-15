@@ -56,7 +56,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         }
     }
     if (nicola_enabled) {
-        return process_thumb_shift(keycode, record->event.key, record->event.pressed);
+        return process_thumb_shift(keycode, &(record->event));
     }
     return true;
 }

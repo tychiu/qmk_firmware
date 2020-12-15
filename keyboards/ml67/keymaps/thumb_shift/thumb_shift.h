@@ -72,6 +72,6 @@ enum combo_code {
 };
 
 extern void thumb_shift_init(void);
-extern bool process_thumb_shift(uint16_t keycode, keypos_t pos, bool pressed);
+extern bool process_thumb_shift(uint16_t keycode, keyevent_t *event);
 
 #endif
