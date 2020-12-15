@@ -6,6 +6,6 @@
 /* ja: コメント解除することで、同時打鍵の重なり判定時間 (最小間隔）を定義できる。デフォルトは 2 × DEBOUNCE */
 // #define OVERLAP_TERM (2 * DEBOUNCE)
 
-/* Uncomment to enable multiple thumb shift combos even when the thumb shift key is held down */
-/* ja: コメント解除することで、親指シフトキーを長押ししても同時打鍵として見做されるようになる */
+/* Uncomment to enable multiple thumb shift combos in one long hold of a thumb shift */
+/* ja: コメント解除することで、親指シフトキーの一つの長押しで、複数の同時打鍵を認識できるようになる */
 // #define THUMB_HOLD

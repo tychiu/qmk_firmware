@@ -22,4 +22,12 @@ Items configurable in `config.h`:
     #define OVERLAP_TERM (2 * DEBOUNCE)
     ```
 
-    The minimum time difference between two thumb shift combos. If two thumb combos are closer than this duration, the first thumb combo will be treated as a single keystroke. Defaults to twice of the debounce delay if not defined.
+    The minimum time difference between two thumb shift combos. If two thumb combos are closer than this duration, the first thumb shift combo will be treated as a single keystroke. Defaults to twice of the debounce delay if not defined.
+
+- Thumb shift hold
+
+    ```C
+    #define THUMB_HOLD
+    ```
+
+    A flag that enables multiple combos in one long hold of a thumb shift. For example, when this feature is enabled, you can type "まるまる" without lifting the right thumb shift.
