@@ -351,6 +351,7 @@ static inline void sandwich_shift(enum shift_state next_state, uint16_t now) {
         // buffer.row = 0;
         // buffer.col = 0;
     } else {
+        shift_send(shift_state);
         press_state = BOTH;
     }
     shift_state = next_state;
