@@ -18,7 +18,7 @@
 #endif
 
 enum custom_keycode {
-    NICOLA_TOG = SAFE_RANGE,
+    THUMB_TOG = SAFE_RANGE,
     THUMB_L,
     THUMB_R,
     NEW_SAFE_RANGE
