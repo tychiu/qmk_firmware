@@ -159,7 +159,7 @@ static inline uint16_t combo_output(enum combo_code code, uint8_t index) {
     return pgm_read_word(&thumb_shift_outputs[code][index]);
 }
 
-static void combo_send(enum combo_code code) {
+static inline void combo_send(enum combo_code code) {
     uint8_t i;
     uint16_t keycode;
     for (i = 0; i < OUTPUT_LEN; i++) {
@@ -171,6 +171,19 @@ static void combo_send(enum combo_code code) {
     }
 }
 
+static inline void shift_send(enum shift_state shift) {
+    switch (shift) {
+        case NO_SHIFT:
+            break;
+        case LEFT_SHIFT:
+            tap_code(KC_ENTER); /* OS-independant muhenkan OS全般適用無変換 */
+            break;
+        case RIGHT_SHIFT:
+            tap_code(KC_SPACE); /* OS-independant henkan OS全般適用変換 */
+            break;
+    }
+}
+
 /* Initialization */
 /* ja: 初期化 */
 void thumb_shift_init(void) {
@@ -178,11 +191,7 @@ void thumb_shift_init(void) {
         case NONE:
             break;
         case SHIFT_ONLY:
-            if (shift_state == LEFT_SHIFT) {
-                tap_code(KC_ENTER); /* OS-independant muhenkan OS全般適用無変換 */
-            } else {
-                tap_code(KC_SPACE); /* OS-independant henkan OS全般適用変換 */
-            }
+            shift_send(shift_state);
             break;
         case TEXT_ONLY:
         case BOTH:
@@ -278,18 +287,12 @@ static inline bool process_text_only_released(keypos_t pos) {
 static inline bool process_shift_only_pressed(uint16_t keycode, keypos_t pos, uint16_t now) {
     enum combo_code code;
     if (keycode == THUMB_L) {
-        if (shift_state == LEFT_SHIFT) {
-            tap_code(KC_ENTER); /* OS-independant muhenkan OS全般適用無変換 */
-        } else {
-            shift_state = LEFT_SHIFT;
-        }
+        shift_send(shift_state);
+        shift_state = LEFT_SHIFT;
         shift_timer = now;
     } else if (keycode == THUMB_R) {
-        if (shift_state == RIGHT_SHIFT) {
-            tap_code(KC_SPACE); /* OS-independant henkan OS全般適用変換 */
-        } else {
-            shift_state = RIGHT_SHIFT;
-        }
+        shift_send(shift_state);
+        shift_state = RIGHT_SHIFT;
         shift_timer = now;
     } else {
         code = combo_keymap(shift_state, pos);
@@ -306,13 +309,13 @@ static inline bool process_shift_only_pressed(uint16_t keycode, keypos_t pos, ui
 static inline bool process_shift_only_released(uint16_t keycode, keypos_t pos) {
     enum combo_code code;
     if (shift_state == LEFT_SHIFT && keycode == THUMB_L) {
+        shift_send(LEFT_SHIFT);
         press_state = NONE;
         shift_state = NO_SHIFT;
-        tap_code(KC_ENTER); /* OS-independant muhenkan OS全般適用無変換 */
     } else if (shift_state == RIGHT_SHIFT && keycode == THUMB_R) {
+        shift_send(RIGHT_SHIFT);
         press_state = NONE;
         shift_state = NO_SHIFT;
-        tap_code(KC_SPACE); /* OS-independant henkan OS全般適用変換 */
     } else {
         code = combo_keymap(shift_state, pos);
         return code == NC_____;
@@ -402,6 +405,7 @@ static inline void overlap_shift(uint16_t now) {
     uint16_t time_before_release = now - text_timer;
     uint16_t time_before_text = text_timer - shift_timer;
     if (time_before_text >= time_before_release && time_before_release < OVERLAP_TERM) {
+        shift_send(shift_state);
         press_state = TEXT_ONLY;
         shift_state = NO_SHIFT;
     } else {
