@@ -4,6 +4,16 @@ A implementation of the Japanese thumb shift input specification using the MINIL
 
 This implementation is designed to work with all OSes, so OS-specific keys (or key combinations) are not used. For single keystrokes of the thumb shift keys, space is used in place of the right thumb shift henkan (変換), and enter is outputted in place of the left thumb shift muhenkan (無変換).
 
+
+## Hotkeys
+- Thumb shift + Esc: Enter programming mode
+- Thumb shift + Caps Lock: Enter Kana mode
+- Thumb shift + ← : Home
+- Thumb shift + → : End
+- Thumb shift + ↑ : Page Up
+- Thumb shift + ↓ : Page Down
+
+
 ## Configurations
 
 Items configurable in `config.h`:
