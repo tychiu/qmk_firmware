@@ -197,9 +197,7 @@ static inline void shift_send(enum shift_state shift) {
 void thumb_shift_init(void) {
     switch (press_state) {
         case NONE:
-            break;
         case SHIFT_ONLY:
-            shift_send(shift_state);
             break;
         case TEXT_ONLY:
         case BOTH:
