@@ -71,7 +71,7 @@ enum combo_code {
     NICOLA_CODE_COUNT
 };
 
-extern void thumb_shift_init(void);
+extern void thumb_shift_init(bool internal);
 extern bool process_thumb_shift(uint16_t keycode, keyevent_t *event);
 
 #endif

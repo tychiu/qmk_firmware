@@ -28,7 +28,9 @@ static bool thumb_shift_enabled = false;
 
 static inline bool process_thumb_shift_toggle(void) {
     thumb_shift_enabled = !thumb_shift_enabled;
-    thumb_shift_init();
+    if (thumb_shift_enabled) {
+        thumb_shift_init(false);
+    }
     return false;
 }
 

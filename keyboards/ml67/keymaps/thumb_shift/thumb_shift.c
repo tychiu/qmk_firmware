@@ -194,14 +194,17 @@ static inline void shift_send(enum shift_state shift) {
 
 /* Initialization */
 /* ja: 初期化 */
-void thumb_shift_init(void) {
-    switch (press_state) {
-        case NONE:
-        case SHIFT_ONLY:
-            break;
-        case TEXT_ONLY:
-        case BOTH:
-            combo_send(combo_keymap(shift_state, buffer));
+void thumb_shift_init(bool internal) {
+    if (internal) {
+        switch (press_state) {
+            case NONE:
+            case SHIFT_ONLY:
+                shift_send(shift_state);
+                break;
+            case TEXT_ONLY:
+            case BOTH:
+                combo_send(combo_keymap(shift_state, buffer));
+        }
     }
     press_state = NONE;
     shift_state = NO_SHIFT;
@@ -224,7 +227,7 @@ static inline void process_thumb_shift_timeout(uint16_t now) {
         case SHIFT_ONLY:
             #ifndef THUMB_HOLD
                 if (now - shift_timer > COMBO_TERM) {
-                    thumb_shift_init();
+                    thumb_shift_init(true);
                 }
             #endif
             break;
