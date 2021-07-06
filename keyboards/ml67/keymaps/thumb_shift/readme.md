@@ -8,6 +8,7 @@ This implementation is designed to work with all OSes, so OS-specific keys (or k
 ## Hotkeys
 - Thumb shift + Esc: Enter programming mode
 - Thumb shift + Caps Lock: Enter Kana mode
+- Thumb shift + Tab: Switch between QWERTY and Dvorak
 - Thumb shift + ← : Home
 - Thumb shift + → : End
 - Thumb shift + ↑ : Page Up
@@ -41,3 +42,11 @@ Items configurable in `config.h`:
     ```
 
     A flag that enables multiple combos in one long hold of a thumb shift. For example, when this feature is enabled, you can type "まるまる" without lifting the right thumb shift.
+
+- Dvorak layout
+
+  ```C
+  #define DVORAK_LAYOUT
+  ```
+
+  A flag that enables switching between QWERTY and Dvorak. However, since QWERTY is the default, you must always switch manually into Dvorak layout.
