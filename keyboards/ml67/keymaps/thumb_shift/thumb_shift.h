@@ -19,6 +19,7 @@
 
 enum custom_keycode {
     THUMB_TOG = SAFE_RANGE,
+    DVORAK_TOG,
     THUMB_L,
     THUMB_R,
     NEW_SAFE_RANGE

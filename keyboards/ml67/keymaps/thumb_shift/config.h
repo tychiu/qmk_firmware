@@ -9,3 +9,7 @@
 /* Uncomment to enable multiple thumb shift combos in one long hold of a thumb shift */
 /* ja: コメント解除することで、親指シフトキーの一つの長押しで、複数の同時打鍵を認識できるようになる */
 // #define THUMB_HOLD
+
+/* Uncomment to enable Dvorak layout layer */
+/* ja: コメント解除することで、英字レイアウトをQWERTY配列からDvorak配列への切り替えができるようになる */
+// #define DVORAK_LAYOUT
